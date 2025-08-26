@@ -1,9 +1,10 @@
 # %%
 import cdsapi
+from urllib.request import urlopen
 
 c = cdsapi.Client()
 
-c.retrieve(
+wind_box = c.retrieve(
     'reanalysis-era5-land',
     {
         'variable': ['10m_u_component_of_wind', '10m_v_component_of_wind'],
@@ -15,6 +16,9 @@ c.retrieve(
         'format': 'netcdf',
     },
     'greenland_wind.nc')
+wind_box.download(f"{'./output.nc'}")
+with urlopen(wind_box.location) as f:
+    ds = xr.open_dataset(f.read())
 # %%
 import xarray as xr
 import matplotlib.pyplot as plt
