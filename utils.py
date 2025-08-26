@@ -17,16 +17,47 @@ def plot_histograms(df):
         fig.suptitle(f"Histograms for {month_name}", fontsize=16)
 
         # Histogram for column 101
-        subset["101"].dropna().hist(bins=30, ax=axes[0], edgecolor="black")
+        temp_data = subset["101"].dropna()
+        mean_temp = temp_data.mean()
+        std_temp = temp_data.std()
+        min_temp = temp_data.min()  # Absolute minimum temperature
+        temp_data.hist(bins=30, ax=axes[0], edgecolor="black", range=(-35, 20))
         axes[0].set_title("Mean air temperature")
         axes[0].set_xlabel("ºC")
+        axes[0].text(
+            0.95,
+            0.95,
+            f"Mean: {mean_temp:.2f} ºC \nStd: {std_temp:.2f} ºC \n Abs Min: {min_temp:.2f} ºC",
+            transform=axes[0].transAxes,
+            fontsize=12,
+            verticalalignment="top",
+            horizontalalignment="right",
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.7),
+        )
+
         # axes[0].set_ylabel("Frequency")
 
         # Histogram for column 301
-        subset["301"].dropna().hist(bins=30, ax=axes[1], edgecolor="black")
+        wind_data = subset["301"].dropna()
+        mean_wind = wind_data.mean()
+        std_wind = wind_data.std()
+        max_wind = wind_data.max()  # Absolute maximum wind speed
+        wind_data.hist(bins=30, ax=axes[1], edgecolor="black", range=(0, 25))
         axes[1].set_title("Mean wind speed")
         axes[1].set_xlabel("m/s")
+        mean_wind = wind_data.mean()
+        std_wind = wind_data.std()
         # axes[1].set_ylabel("Frequency")
+        axes[1].text(
+            0.95,
+            0.95,
+            f"Mean: {mean_wind:.2f} m/s \nStd: {std_wind:.2f} m/s \n Abs Max: {max_wind:.2f} m/s",
+            transform=axes[1].transAxes,
+            fontsize=12,
+            verticalalignment="top",
+            horizontalalignment="right",
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.7),
+        )
 
         plt.tight_layout(rect=[0, 0, 1, 0.95])
         plt.show()
