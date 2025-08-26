@@ -1,14 +1,10 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import utils
+
 
 # Read the CSV file
-df = pd.read_csv("446500.csv", sep=";")
+df = pd.read_csv("data/446500.csv", sep=";")
+utils.plot_histograms(df)
 
-# Plot histogram of column 101
-plt.figure(figsize=(8, 5))
-df["101"].hist(bins=30, edgecolor="black")
-plt.title("Histogram of Column 101")
-plt.xlabel("Value")
-plt.ylabel("Frequency")
-plt.grid(False)
-plt.show()
+utils.plot_wind_rose(df, 304, 354, 254)
