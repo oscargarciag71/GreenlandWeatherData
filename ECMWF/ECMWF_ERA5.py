@@ -178,3 +178,69 @@ cbar.set_label('°C', size=12)
 cbar.ax.tick_params(labelsize=12)
 
 plt.show()
+
+# %%
+import numpy as np
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+
+# Example: central Greenland point
+lon_pt, lat_pt = -40.0, 72.0
+
+# Download 10m wind components
+ds_wind = get_era5(
+    dataset_name="reanalysis-era5-single-levels",
+    var=["10m_u_component_of_wind", "10m_v_component_of_wind"],
+    dates=["2021-06-01", "2021-06-10"],
+    grid=[0.25, 0.25]
+)
+# %%
+# compute wind speed
+u10 = ds_wind["u10"].squeeze()
+v10 = ds_wind["v10"].squeeze()
+wind_speed = np.sqrt(u10**2 + v10**2)
+
+# --------------------
+# 1) Time series at central Greenland
+# --------------------
+# Find nearest gridpoint
+pt = ds_wind.sel(latitude=lat_pt, longitude=lon_pt, method="nearest")
+
+u_pt = pt["u10"].values
+v_pt = pt["v10"].values
+ws_pt = np.sqrt(u_pt**2 + v_pt**2)
+
+plt.figure(figsize=(10,4))
+plt.plot(pt["valid_time"], ws_pt, label="Wind speed (m/s)", color="tab:blue")
+plt.axhline(5, color="gray", linestyle="--", label="~5 m/s (kiteable)")
+plt.legend()
+plt.title("10m Wind Speed at Central Greenland (72N, 40W)")
+plt.ylabel("m/s")
+plt.grid()
+plt.show()
+
+# --------------------
+# 2) Map plot for June monthly mean
+# --------------------
+fig, ax = plt.subplots(
+    figsize=(7,6),
+    subplot_kw={"projection": ccrs.NorthPolarStereo()}
+)
+
+ax.set_extent([-75, -10, 59, 85], crs=ccrs.PlateCarree())
+
+# monthly mean wind speed
+ws_mean = wind_speed.mean(dim="valid_time")
+
+map1 = ax.contourf(
+    ds_wind["longitude"], ds_wind["latitude"], ws_mean,
+    transform=ccrs.PlateCarree(),
+    cmap="viridis", levels=20
+)
+
+plt.colorbar(map1, ax=ax, orientation="horizontal", pad=0.05, label="m/s")
+ax.coastlines()
+ax.set_title("ERA5 Monthly Mean 10m Wind Speed – June 2021")
+plt.show()
+
+# %%
