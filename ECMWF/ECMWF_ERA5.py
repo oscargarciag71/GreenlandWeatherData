@@ -142,41 +142,59 @@ import cartopy.feature as cfeature
 ds_out = get_era5(
     dataset_name='reanalysis-era5-single-levels-monthly-means',
     var='2m_temperature',
-    dates=['2021-02-01'],
-    grid=[0.25, 0.25]
+    dates=['2020-05-01', '2020-06-01', '2020-07-01', '2021-05-01', '2021-06-01', '2021-07-01', '2022-05-01', '2022-06-01', '2022-07-01', '2023-05-01', '2023-06-01', '2023-07-01'],
+    grid=[0.25, 0.25],
+    area=[90, -90, 50, -0] # N, W, S, E
 )
 
 # Extract data
 lon = ds_out['longitude'].values
 lat = ds_out['latitude'].values
 t2m = ds_out['t2m'].squeeze().values - 273.15  # Kelvin → Celsius
-
+# %%
 # --- create figure and axes ---
-fig, ax = plt.subplots(
-    figsize=(10, 5),
-    subplot_kw={'projection': ccrs.Robinson(central_longitude=0)}
+from matplotlib.colors import BoundaryNorm
+
+# --- Combined figure with two subplots ---
+fig, axes = plt.subplots(
+    4, 3, figsize=(18, 18),
+    subplot_kw={'projection': ccrs.NorthPolarStereo()}
 )
 
-# add features
-ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
-ax.add_feature(cfeature.BORDERS, linewidth=0.3)
-ax.set_global()
+# Define boundaries for color levels
+boundaries = np.linspace(-25, 15, 41)  # Example: 41 intervals from -25 to 15
+norm = BoundaryNorm(boundaries, ncolors=plt.get_cmap('coolwarm').N, clip=True)
 
-# plot data
-map1 = ax.contourf(
-    lon, lat, t2m,
-    transform=ccrs.PlateCarree(),
-    levels=20, cmap='coolwarm', vmin=-30, vmax=30, extend='both'
-)
+for i, ax in enumerate(axes.flat):
+    # Add features
+    ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
+    ax.add_feature(cfeature.BORDERS, linewidth=0.3)
+    # ax.set_global() # global map extend
+    ax.set_extent([-75, -10, 65, 85], crs=ccrs.PlateCarree())
+    # Plot data
+    map1 = ax.contourf(
+        lon, lat, t2m[i, :, :],
+        transform=ccrs.PlateCarree(),
+        # levels=30, cmap='coolwarm', vmin=-30, vmax=30, extend='both'
+        levels=boundaries, cmap='coolwarm', norm=norm, extend='both'
+    )
+    # Title
+    month = ["May 2020", "June 2020", "July 2020", "May 2021", "June 2021", "July 2021", "May 2022", "June 2022", "July 2022", "May 2023", "June 2023", "July 2023"][i]
+    ax.set_title(f'{month}', fontsize=14, y=1.05)
 
-# title
-ax.set_title('ERA5 monthly mean 2m temperature - February 2021', fontsize=14)
+# # Shared colorbar
+# cbar = fig.colorbar(map1, ax=axes, orientation='vertical', shrink=1, pad=0.08)
 
-# colorbar
-cbar = plt.colorbar(map1, ax=ax, orientation='horizontal', shrink=0.6, pad=0.05)
-cbar.set_label('°C', size=12)
+# Shared colorbar using boundaries
+cbar = fig.colorbar(map1, ax=axes, orientation='vertical', shrink=1, pad=0.08, boundaries=boundaries, ticks=boundaries[::2])
+
+cbar.set_label('°C', size=12, rotation=0)
 cbar.ax.tick_params(labelsize=12)
 
+fig.suptitle("ERA5 Monthly Mean 2m Temperature", fontsize=20, x=0.4, y=0.93)
+
+# plt.tight_layout()
+plt.savefig(r"C:\Users\SchwarzN\OneDrive - Université de Fribourg\Private\2026_Greenland\WeatherAnalysis\GreenlandWeatherData\ECMWF\era5_monthly_mean_2m_temperature.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 # %%
