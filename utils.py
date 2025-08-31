@@ -62,7 +62,11 @@ def plot_histograms(df):
         plt.tight_layout(rect=[0, 0, 1, 0.95])
         plt.show()
 
-def plot_wind_rose(df, marker_angle, kite_angle_1, kite_angle_2):
+
+def plot_wind_rose(df, heading):
+    kite_angle_1 = (heading - 45) % 360
+    kite_angle_2 = (heading + 45) % 360
+
     # Months of interest
     months = {5: "May", 6: "June", 7: "July"}
 
@@ -70,28 +74,51 @@ def plot_wind_rose(df, marker_angle, kite_angle_1, kite_angle_2):
 
     # Create 3 windrose axes manually
     for i, (month, name) in enumerate(months.items()):
-        df_month = df[df['Month'] == month][['301','365']].dropna()
-        ws = df_month['301'].values
-        wd = df_month['365'].values
+        df_month = df[df["Month"] == month][["301", "365"]].dropna()
+        ws = df_month["301"]
+        wd = df_month["365"]
 
         # Define axes rectangle: left, bottom, width, height
-        rect = [0.05 + i*0.32, 0.1, 0.3, 0.8]  # adjust spacing between subplots
+        rect = [0.05 + i * 0.32, 0.1, 0.3, 0.8]  # adjust spacing between subplots
         ax = WindroseAxes(fig, rect)
         fig.add_axes(ax)
-        
-        ax.bar(wd, ws, opening=0.8, edgecolor="white", bins=[0,2,4,6,8,10], normed=True)
-        ax.set_title(f"Average wind speed and direction for {name}", fontsize=14)
-        
+
+        ax.bar(
+            wd,
+            ws,
+            opening=0.8,
+            edgecolor="white",
+            bins=[0, 2, 4, 6, 8, 10],
+            normed=True,
+        )
+        ax.set_title(f"Average wind {name}", fontsize=14)
+
         # Add radial marker at 124°
-        theta = np.deg2rad(marker_angle)
+
+        theta = np.deg2rad(-heading + 90)
         ax.plot([theta, theta], [0, ax.get_rmax()], "r--", lw=2)
 
-        theta_1 = np.deg2rad(kite_angle_1)
+        theta_1 = np.deg2rad(-kite_angle_1 + 90)
         ax.plot([theta_1, theta_1], [0, ax.get_rmax()], "b--", lw=2)
 
-        theta_2 = np.deg2rad(kite_angle_2)
+        theta_2 = np.deg2rad(-kite_angle_2 + 90)
         ax.plot([theta_2, theta_2], [0, ax.get_rmax()], "b--", lw=2)
-        
+
+        # ---- Compute percentage ----
+        mask = (ws > 1.9) & ((wd < kite_angle_1) | (wd > kite_angle_2))
+        percentage = 100 * mask.sum() / len(ws)
+
+        # Add text annotation inside plot
+        ax.text(
+            0.5,
+            -0.15,
+            f"Kiting conditions {percentage:.1f}%",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+            fontsize=12,
+            color="black",
+        )
     # Add a single legend for all subplots
     ax.set_legend(title="Wind speed (m/s)")
 
