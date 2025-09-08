@@ -335,6 +335,30 @@ for year in years:
 import xarray as xr
 import numpy as np
 
+# Ilulissat to Tasiilaq
+start_lat, start_lon = 69.753550, -50.279133 # Ilulissat
+end_lat, end_lon = 65.9654610324651, -38.322433959692717 # Tasiilaq
+
+distance_km = haversine(start_lat, start_lon, end_lat, end_lon)
+
+bearing_deg = calculate_bearing(start_lat, start_lon, end_lat, end_lon)
+print(f"Bearing from start to end point: {bearing_deg:.2f}°")
+
+# 40 days for the crossing
+start_date = "05-30" # May 30
+end_date = "07-08" # July 8
+
+year = 0000
+days = np.arange(np.datetime64(f"{year}-{start_date}"), np.datetime64(f"{year}-{end_date}") + np.timedelta64(1, 'D'))
+dates = [str(day) for day in days]
+n_days = len(dates)
+
+years = np.arange(1950, 2026)
+
+# Number of interpolation points (including endpoints) set to number of days
+n_points = n_days
+lats, lons = interpolate_great_circle(start_lat, start_lon, end_lat, end_lon, n_points)
+
 # 2D arrays for wind speed and direction: shape (len(years), n_points, 24)
 hours = [f"{h:02d}" for h in range(24)]
 wind_speed_along_path = np.zeros((len(years), n_points, len(hours)))
@@ -356,116 +380,120 @@ for y_idx, year in enumerate(years):
             wd_pt = (np.arctan2(u_pt, v_pt) * 180 / np.pi) % 360
             wind_speed_along_path[y_idx, i, h] = ws_pt # shape (len(years), len(dates), 24)
             wind_dir_along_path[y_idx, i, h] = wd_pt # shape (len(years), len(dates), 24)
+# %% Analze kiteable hours
+import numpy as np
+# Define kiteable wind speed range
+kiteable_min = 6  # m/s
+kiteable_max = 14 # m/s
+# Count kiteable hours for each day along the path, considering both wind speed and direction
+bearing_min = (bearing_deg - 50) % 360
+bearing_max = (bearing_deg + 50) % 360
+
+# Function to check if angle is within bearing_deg +/- 50°
+def is_within_bearing(angle, center, width):
+    diff = (angle - center + 180) % 360 - 180
+    return np.abs(diff) <= width
+
+# Vectorized mask for wind direction within bearing_deg +/- 50°
+bearing_mask = np.vectorize(is_within_bearing)(
+    wind_dir_along_path, bearing_deg+180, 50
+)
+
+# Mask for kiteable wind speed
+speed_mask = (wind_speed_along_path >= kiteable_min) & (wind_speed_along_path <= kiteable_max)
+
+# Combine both masks
+kiteable_mask = speed_mask & bearing_mask
+
+# Count kiteable hours for each day along the path
+kiteable_hours_count = np.sum(kiteable_mask, axis=2)  # shape (len(years), len(dates))
+kiteable_hours_bearing = np.sum(bearing_mask, axis=2) # shape (len(years), len(dates))
+kiteable_hours_speed = np.sum(speed_mask, axis=2) # shape (len(years), len(dates))
+
+# Average kiteable hours across all years for each day
+average_kiteable_hours = np.mean(kiteable_hours_count, axis=0)  # shape (len(dates),)
+percentile_25_kiteable_hours = np.percentile(kiteable_hours_count, 25, axis=0)
+percentile_75_kiteable_hours = np.percentile(kiteable_hours_count, 75, axis=0)
+std_kiteable_hours = np.std(kiteable_hours_count, axis=0)
+
+average_kiteable_hours_bearing = np.mean(kiteable_hours_bearing, axis=0)
+percentile_25_kiteable_hours_bearing = np.percentile(kiteable_hours_bearing, 25, axis=0)
+percentile_75_kiteable_hours_bearing = np.percentile(kiteable_hours_bearing, 75, axis=0)
+average_kiteable_hours_speed = np.mean(kiteable_hours_speed, axis=0)
+percentile_25_kiteable_hours_speed = np.percentile(kiteable_hours_speed, 25, axis=0)
+percentile_75_kiteable_hours_speed = np.percentile(kiteable_hours_speed, 75, axis=0)
+
+
+print(f"kiteable hours Illulisat - Tasiilaq: {np.mean(average_kiteable_hours/(np.ones(len(average_kiteable_hours))*24))*100:.0f}%/d")
+
+# Plot average kiteable hours per day along the path
+import matplotlib.pyplot as plt
+
+
+plt.figure(figsize=(12, 6))
+# plt.errorbar(np.arange(1, len(average_kiteable_hours)+1), average_kiteable_hours, yerr=std_kiteable_hours, fmt='o', color='tab:red', ecolor='lightblue', elinewidth=2, capsize=4, label='mean kiteable hours ± std')
+plt.plot(np.arange(1, len(average_kiteable_hours)+1), average_kiteable_hours, marker='o', color='tab:red', linewidth = 2, label='mean kiteable hours')
+# plt.fill_between(
+#     np.arange(1, len(average_kiteable_hours)+1),
+#     percentile_25_kiteable_hours,
+#     percentile_75_kiteable_hours,
+#     color='tab:red', alpha=0.2, label='25th–75th percentile'
+# )
+plt.fill_between(
+    np.arange(1, len(average_kiteable_hours)+1),
+    average_kiteable_hours - std_kiteable_hours,
+    average_kiteable_hours + std_kiteable_hours,
+    color='tab:red', alpha=0.2, label='25th–75th percentile'
+)
+plt.plot(np.arange(1, len(average_kiteable_hours)+1), average_kiteable_hours_bearing, linestyle = '--', color='tab:red', linewidth = 2, label='kiteable hours bearing')
+# plt.fill_between(
+#     np.arange(1, len(average_kiteable_hours)+1),
+#     percentile_25_kiteable_hours_bearing,
+#     percentile_75_kiteable_hours_bearing,
+#     color='tab:red', alpha=0.2
+# )
+plt.plot(np.arange(1, len(average_kiteable_hours)+1), average_kiteable_hours_speed, linestyle = ':', color='tab:red', linewidth = 2, label='kiteable hours speed')
+# plt.fill_between(
+#     np.arange(1, len(average_kiteable_hours)+1),
+#     percentile_25_kiteable_hours_speed,
+#     percentile_75_kiteable_hours_speed,
+#     color='tab:red', alpha=0.2
+# )
+plt.title("Ilulissat to Tasiilaq: Average Daily Kiteable Hours (6-14 m/s, ±50° from bearing) – 1950 to 2026")
+plt.xlabel("Day")
+plt.ylabel("Average Kiteable Hours")
+plt.xlim(1, len(average_kiteable_hours))
+plt.ylim(0,24)
+plt.legend()
+plt.grid()
+plt.annotate(f"{np.mean(average_kiteable_hours/(np.ones(len(average_kiteable_hours))*24))*100:.0f}%/d", xy=(26, 17), fontsize=18, color='tab:red')
+plt.savefig("C:/Users/SchwarzN/OneDrive - Université de Fribourg/Private/2026_Greenland/WeatherAnalysis/GreenlandWeatherData/ECMWF/kiteable_hours_Illulisat_Tasiilaq_1950_2026.png", dpi=300)
+plt.show()
+# %% Generate windrose for all locations/date taking into account all years and hours
+# ? Is it reasonable to analyze for differences and trends between different years?
+# import windrose
+
+# def plot_windrose(wind_speed, wind_dir, years, date, lat, lon):
+#     date = f"{date.split('-')[2]}.{date.split('-')[1]}."
+#     ax = windrose.WindroseAxes.from_ax()
+#     ax.bar(wind_dir.flatten(), wind_speed.flatten(), normed=True, opening=0.8, edgecolor='white')
+#     ax.set_title(f"Wind Rose for {years[0]} - {years[-1]} ({date})\nLocation: {lat:.2f}°, {lon:.2f}°")
+#     ax.set_xlabel("Wind Direction (°)")
+#     ax.set_ylabel("Wind Speed (m/s)")
+    
+#     ax.legend(title="Wind Speed (m/s)", loc='lower left', bbox_to_anchor=(1.1, 0))
+#     plt.show()
+
+# for day_idx, day in enumerate(dates):
+#     plot_windrose(wind_speed_along_path[:, day_idx, :], wind_dir_along_path[:, day_idx, :], years, dates[day_idx], lats[day_idx], lons[day_idx])
 
 # %% Generate windrose for all locations/date taking into account all years and hours
 # ? Is it reasonable to analyze for differences and trends between different years?
-import windrose
-
-def plot_windrose(wind_speed, wind_dir, years, date, lat, lon):
-    date = f"{date.split('-')[2]}.{date.split('-')[1]}."
-    ax = windrose.WindroseAxes.from_ax()
-    ax.bar(wind_dir.flatten(), wind_speed.flatten(), normed=True, opening=0.8, edgecolor='white')
-    ax.set_title(f"Wind Rose for {years[0]} - {years[-1]} ({date})\nLocation: {lat:.2f}°, {lon:.2f}°")
-    ax.set_xlabel("Wind Direction (°)")
-    ax.set_ylabel("Wind Speed (m/s)")
-    
-    ax.legend(title="Wind Speed (m/s)", loc='lower left', bbox_to_anchor=(1.1, 0))
-    plt.show()
-
-for day_idx, day in enumerate(dates):
-    plot_windrose(wind_speed_along_path[:, day_idx, :], wind_dir_along_path[:, day_idx, :], years, dates[day_idx], lats[day_idx], lons[day_idx])
-
-# %%
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
 
-from windrose import WindroseAxes, plot_windrose
-
-wind_data = pd.DataFrame(
-    {
-        "ws": np.random.random(1200) * 6,
-        "wd": np.random.random(1200) * 360,
-        "month": np.repeat(range(1, 13), 100),
-    }
-)
-
-
-def plot_windrose_subplots(data, *, direction, var, color=None, **kwargs):
-    """wrapper function to create subplots per axis"""
-    ax = plt.gca()
-    ax = WindroseAxes.from_ax(ax=ax)
-    plot_windrose(direction_or_df=data[direction], var=data[var], ax=ax, **kwargs)
-
-
-# this creates the raw subplot structure with a subplot per value in month.
-g = sns.FacetGrid(
-    data=wind_data,
-    # the column name for each level a subplot should be created
-    col="month",
-    # place a maximum of 3 plots per row
-    col_wrap=3,
-    subplot_kws={"projection": "windrose"},
-    sharex=False,
-    sharey=False,
-    despine=False,
-    height=3.5,
-)
-
-g.map_dataframe(
-    plot_windrose_subplots,
-    direction="wd",
-    var="ws",
-    normed=True,
-    # manually set bins, so they match for each subplot
-    bins=(0.1, 1, 2, 3, 4, 5),
-    calm_limit=0.1,
-    kind="bar",
-)
-
-# make the subplots easier to compare, by having the same y-axis range
-y_ticks = range(0, 17, 4)
-for ax in g.axes:
-    ax.set_legend(
-        title=r"$m \cdot s^{-1}$", bbox_to_anchor=(1.15, -0.1), loc="lower right"
-    )
-    ax.set_rgrids(y_ticks, y_ticks)
-
-# adjust the spacing between the subplots to have sufficient space between plots
-plt.subplots_adjust(wspace=-0.2)
-# %%
-# --- Windrose subplots for each date using calculated data ---
-import matplotlib.pyplot as plt
-from windrose import WindroseAxes
-
-num_dates = len(dates)
-cols = 3
-rows = int(np.ceil(num_dates / cols))
-fig, axes = plt.subplots(rows, cols, subplot_kw={"projection": "windrose"}, figsize=(cols*4, rows*4))
-axes = axes.flatten()
-
-for day_idx, day in enumerate(dates):
-    ax = axes[day_idx]
-    ws = wind_speed_along_path[:, day_idx, :].flatten()
-    wd = wind_dir_along_path[:, day_idx, :].flatten()
-    ax.bar(wd, ws, normed=True, opening=0.8, edgecolor='white')
-    ax.set_title(f"{day} ({lats[day_idx]:.2f}°, {lons[day_idx]:.2f}°)")
-    ax.set_xlabel("Wind Direction (°)")
-    ax.set_ylabel("Wind Speed (m/s)")
-    ax.legend(title="Wind Speed (m/s)", loc='lower left', bbox_to_anchor=(1.1, 0))
-
-# Hide unused subplots if any
-for i in range(num_dates, len(axes)):
-    fig.delaxes(axes[i])
-
-plt.tight_layout()
-plt.show()
-# %%
-import numpy as np
-import pandas as pd
-import seaborn as sns
-from matplotlib import pyplot as plt
 from windrose import WindroseAxes, plot_windrose
 
 bearing_angle = bearing_deg  # arrow in windrose plots
@@ -490,7 +518,7 @@ for day_idx, date in enumerate(dates):
 wind_data = pd.DataFrame.from_records(records)
 
 # --- Windrose plotting function ---
-def plot_windrose_subplots(data, *, direction, var, **kwargs):
+def plot_windrose_subplots(data, *, direction, var, color=None, **kwargs):
     ax = plt.gca()
     ax = WindroseAxes.from_ax(ax=ax)
     plot_windrose(
@@ -518,33 +546,267 @@ g.map_dataframe(
     direction="wd",
     var="ws",
     normed=True,
-    bins=(0.1, 1, 2, 3, 4, 5),
+    bins=(0.1, 2, 4, 6, 8, 10),
     calm_limit=0.1,
     kind="bar",
 )
 
 # --- Format each subplot ---
-y_ticks = range(0, 17, 4)
+y_ticks = range(0, 50, 12)
 for ax, (date, subdata) in zip(g.axes.flat, wind_data.groupby("date")):
     lat = subdata["lat"].iloc[0]
     lon = subdata["lon"].iloc[0]
-    ax.set_title(f"{date}\n({lat:.2f}°, {lon:.2f}°)")
+    ax.set_title(f"{date.split('-')[2]}.{date.split('-')[1]}.\n({lat:.2f}°, {lon:.2f}°)")
 
     # Legend
     ax.set_legend(
         title=r"$m \cdot s^{-1}$", bbox_to_anchor=(1.15, -0.1), loc="lower right"
     )
-    ax.set_rgrids(y_ticks, y_ticks)
+    # ax.set_rgrids(y_ticks, y_ticks)
 
     # --- Add arrow for bearing angle ---
-    theta = np.deg2rad(bearing_angle+180)
+    theta = np.deg2rad(bearing_angle)
     rmax = ax.get_ylim()[1]  # maximum radius
     ax.annotate(
         "", 
-        xy=(theta, rmax*0.9),  # arrow tip
-        xytext=(theta, 0),     # arrow start
+        xy=(theta, 0),
+        xytext=(theta, rmax*0.9),
         arrowprops=dict(facecolor="red", edgecolor="red", width=2, headwidth=8)
     )
+    ax.plot([theta, theta+np.deg2rad(50)], [0, rmax*0.95], color="gray", linewidth=2)
+    ax.plot([theta, theta-np.deg2rad(50)], [0, rmax*0.95], color="gray", linewidth=2)
 
 plt.subplots_adjust(wspace=-0.2, hspace=0.4)
+plt.savefig("C:/Users/SchwarzN/OneDrive - Université de Fribourg/Private/2026_Greenland/WeatherAnalysis/GreenlandWeatherData/ECMWF/Illulisat_Tasiilaq_windrose.png", dpi=300)
+plt.show()
+# %%
+# %% Process data to extract wind speed and direction along the path
+import xarray as xr
+import numpy as np
+
+# Tasiilaq to Ilulissat
+start_lat, start_lon = 65.9654610324651, -38.322433959692717 # Tasiilaq
+end_lat, end_lon = 69.753550, -50.279133 # Ilulissat
+
+distance_km = haversine(start_lat, start_lon, end_lat, end_lon)
+
+bearing_deg = calculate_bearing(start_lat, start_lon, end_lat, end_lon)
+print(f"Bearing from start to end point: {bearing_deg:.2f}°")
+
+# 40 days for the crossing
+start_date = "05-30" # May 30
+end_date = "07-08" # July 8
+
+year = 0000
+days = np.arange(np.datetime64(f"{year}-{start_date}"), np.datetime64(f"{year}-{end_date}") + np.timedelta64(1, 'D'))
+dates = [str(day) for day in days]
+n_days = len(dates)
+
+years = np.arange(1950, 2026)
+
+# Number of interpolation points (including endpoints) set to number of days
+n_points = n_days
+lats, lons = interpolate_great_circle(start_lat, start_lon, end_lat, end_lon, n_points)
+
+# 2D arrays for wind speed and direction: shape (len(years), n_points, 24)
+hours = [f"{h:02d}" for h in range(24)]
+wind_speed_along_path = np.zeros((len(years), n_points, len(hours)))
+wind_dir_along_path = np.zeros((len(years), n_points, len(hours)))
+
+for y_idx, year in enumerate(years):
+    for i in np.arange(len(dates)):
+        date = f"{year}-{dates[i].split('-')[1]}-{dates[i].split('-')[2]}"
+        path = f"C:/Users/SchwarzN/wind_data/hourly_wind_{year}_{date}.nc"
+        ds = xr.open_dataset(path)
+        u10 = ds["u10"].squeeze()
+        v10 = ds["v10"].squeeze()
+        # Retrieve for all hours
+        for h in range(24):
+            u_pt = u10.sel(valid_time=date+"T"+hours[h], latitude=lats[i], longitude=lons[i], method="nearest").values
+            v_pt = v10.sel(valid_time=date+"T"+hours[h], latitude=lats[i], longitude=lons[i], method="nearest").values
+            ws_pt = np.sqrt(u_pt**2 + v_pt**2)
+            # Wind direction in degrees: 0 = North, 90 = East, 180 = South, 270 = West
+            wd_pt = (np.arctan2(u_pt, v_pt) * 180 / np.pi) % 360
+            wind_speed_along_path[y_idx, i, h] = ws_pt # shape (len(years), len(dates), 24)
+            wind_dir_along_path[y_idx, i, h] = wd_pt # shape (len(years), len(dates), 24)
+# %% Analze kiteable hours
+import numpy as np
+# Define kiteable wind speed range
+kiteable_min = 6  # m/s
+kiteable_max = 14 # m/s
+# Count kiteable hours for each day along the path, considering both wind speed and direction
+bearing_min = (bearing_deg - 50) % 360
+bearing_max = (bearing_deg + 50) % 360
+
+# Function to check if angle is within bearing_deg +/- 50°
+def is_within_bearing(angle, center, width):
+    diff = (angle - center + 180) % 360 - 180
+    return np.abs(diff) <= width
+
+# Vectorized mask for wind direction within bearing_deg +/- 50°
+bearing_mask = np.vectorize(is_within_bearing)(
+    wind_dir_along_path, bearing_deg+180, 50
+)
+
+# Mask for kiteable wind speed
+speed_mask = (wind_speed_along_path >= kiteable_min) & (wind_speed_along_path <= kiteable_max)
+
+# Combine both masks
+kiteable_mask = speed_mask & bearing_mask
+
+# Count kiteable hours for each day along the path
+kiteable_hours_count = np.sum(kiteable_mask, axis=2)  # shape (len(years), len(dates))
+kiteable_hours_bearing = np.sum(bearing_mask, axis=2) # shape (len(years), len(dates))
+kiteable_hours_speed = np.sum(speed_mask, axis=2) # shape (len(years), len(dates))
+
+# Average kiteable hours across all years for each day
+average_kiteable_hours = np.mean(kiteable_hours_count, axis=0)  # shape (len(dates),)
+percentile_25_kiteable_hours = np.percentile(kiteable_hours_count, 25, axis=0)
+percentile_75_kiteable_hours = np.percentile(kiteable_hours_count, 75, axis=0)
+std_kiteable_hours = np.std(kiteable_hours_count, axis=0)
+
+average_kiteable_hours_bearing = np.mean(kiteable_hours_bearing, axis=0)
+percentile_25_kiteable_hours_bearing = np.percentile(kiteable_hours_bearing, 25, axis=0)
+percentile_75_kiteable_hours_bearing = np.percentile(kiteable_hours_bearing, 75, axis=0)
+average_kiteable_hours_speed = np.mean(kiteable_hours_speed, axis=0)
+percentile_25_kiteable_hours_speed = np.percentile(kiteable_hours_speed, 25, axis=0)
+percentile_75_kiteable_hours_speed = np.percentile(kiteable_hours_speed, 75, axis=0)
+
+
+print(f"kiteable hours Tasiilaq - Illulisat: {np.mean(average_kiteable_hours/(np.ones(len(average_kiteable_hours))*24))*100:.0f}%/d")
+
+# Plot average kiteable hours per day along the path
+import matplotlib.pyplot as plt
+
+
+plt.figure(figsize=(12, 6))
+# plt.errorbar(np.arange(1, len(average_kiteable_hours)+1), average_kiteable_hours, yerr=std_kiteable_hours, fmt='o', color='tab:blue', ecolor='lightblue', elinewidth=2, capsize=4, label='mean kiteable hours ± std')
+plt.plot(np.arange(1, len(average_kiteable_hours)+1), average_kiteable_hours, marker='o', color='tab:blue', linewidth = 2, label='mean kiteable hours')
+# plt.fill_between(
+#     np.arange(1, len(average_kiteable_hours)+1),
+#     percentile_25_kiteable_hours,
+#     percentile_75_kiteable_hours,
+#     color='tab:blue', alpha=0.2, label='25th–75th percentile'
+# )
+plt.fill_between(
+    np.arange(1, len(average_kiteable_hours)+1),
+    average_kiteable_hours - std_kiteable_hours,
+    average_kiteable_hours + std_kiteable_hours,
+    color='tab:blue', alpha=0.2, label='25th–75th percentile'
+)
+plt.plot(np.arange(1, len(average_kiteable_hours)+1), average_kiteable_hours_bearing, linestyle = '--', color='tab:blue', linewidth = 2, label='kiteable hours bearing')
+# plt.fill_between(
+#     np.arange(1, len(average_kiteable_hours)+1),
+#     percentile_25_kiteable_hours_bearing,
+#     percentile_75_kiteable_hours_bearing,
+#     color='tab:blue', alpha=0.2
+# )
+plt.plot(np.arange(1, len(average_kiteable_hours)+1), average_kiteable_hours_speed, linestyle = ':', color='tab:blue', linewidth = 2, label='kiteable hours speed')
+# plt.fill_between(
+#     np.arange(1, len(average_kiteable_hours)+1),
+#     percentile_25_kiteable_hours_speed,
+#     percentile_75_kiteable_hours_speed,
+#     color='tab:blue', alpha=0.2
+# )
+plt.title("Tasiilaq to Ilulissat: Average Daily Kiteable Hours (6-14 m/s, ±50° from bearing)")
+plt.xlabel("Day")
+plt.ylabel("Average Kiteable Hours")
+plt.xlim(1, len(average_kiteable_hours))
+plt.ylim(0,24)
+plt.legend()
+plt.grid()
+plt.annotate(f"{np.mean(average_kiteable_hours/(np.ones(len(average_kiteable_hours))*24))*100:.0f}%/d", xy=(16, 17), fontsize=18, color='tab:blue')
+plt.savefig("C:/Users/SchwarzN/OneDrive - Université de Fribourg/Private/2026_Greenland/WeatherAnalysis/GreenlandWeatherData/ECMWF/kiteable_hours_Tasiilaq_Illulisat.png", dpi=300)
+plt.show()
+# %% Generate windrose for all locations/date taking into account all years and hours
+# ? Is it reasonable to analyze for differences and trends between different years?
+import numpy as np
+import pandas as pd
+import seaborn as sns
+from matplotlib import pyplot as plt
+
+from windrose import WindroseAxes, plot_windrose
+
+bearing_angle = bearing_deg  # arrow in windrose plots
+
+# --- Prepare your data into a flat dataframe for seaborn ---
+records = []
+for day_idx, date in enumerate(dates):
+    ws = wind_speed_along_path[:, day_idx, :].flatten()
+    wd = wind_dir_along_path[:, day_idx, :].flatten()
+    lat = lats[day_idx]
+    lon = lons[day_idx]
+    
+    for s, d in zip(ws, wd):
+        records.append({
+            "ws": s,
+            "wd": d,
+            "date": date,
+            "lat": lat,
+            "lon": lon,
+        })
+
+wind_data = pd.DataFrame.from_records(records)
+
+# --- Windrose plotting function ---
+def plot_windrose_subplots(data, *, direction, var, color=None, **kwargs):
+    ax = plt.gca()
+    ax = WindroseAxes.from_ax(ax=ax)
+    plot_windrose(
+        direction_or_df=data[direction],
+        var=data[var],
+        ax=ax,
+        **kwargs
+    )
+    return ax
+
+# --- Build FacetGrid: one subplot per date ---
+g = sns.FacetGrid(
+    data=wind_data,
+    col="date",
+    col_wrap=4,        # adjust if too many columns
+    subplot_kws={"projection": "windrose"},
+    sharex=False,
+    sharey=False,
+    despine=False,
+    height=3.5,
+)
+
+g.map_dataframe(
+    plot_windrose_subplots,
+    direction="wd",
+    var="ws",
+    normed=True,
+    bins=(0.1, 2, 4, 6, 8, 10),
+    calm_limit=0.1,
+    kind="bar",
+)
+
+# --- Format each subplot ---
+y_ticks = range(0, 50, 12)
+for ax, (date, subdata) in zip(g.axes.flat, wind_data.groupby("date")):
+    lat = subdata["lat"].iloc[0]
+    lon = subdata["lon"].iloc[0]
+    ax.set_title(f"{date.split('-')[2]}.{date.split('-')[1]}.\n({lat:.2f}°, {lon:.2f}°)")
+
+    # Legend
+    ax.set_legend(
+        title=r"$m \cdot s^{-1}$", bbox_to_anchor=(0.15, 1.1), loc="upper right"
+    )
+    # ax.set_rgrids(y_ticks, y_ticks)
+
+    # --- Add arrow for bearing angle ---
+    theta = np.deg2rad(bearing_angle)
+    rmax = ax.get_ylim()[1]  # maximum radius
+    ax.annotate(
+        "", 
+        xy=(theta, 0),
+        xytext=(theta, rmax*0.9),
+        arrowprops=dict(facecolor="red", edgecolor="red", width=2, headwidth=8)
+    )
+    ax.plot([theta, theta+np.deg2rad(50)], [0, rmax*0.95], color="gray", linewidth=2)
+    ax.plot([theta, theta-np.deg2rad(50)], [0, rmax*0.95], color="gray", linewidth=2)
+
+plt.subplots_adjust(wspace=-0.2, hspace=0.4)
+plt.savefig("C:/Users/SchwarzN/OneDrive - Université de Fribourg/Private/2026_Greenland/WeatherAnalysis/GreenlandWeatherData/ECMWF/Tasiilaq_Illulisat_windrose.png", dpi=300)
 plt.show()
