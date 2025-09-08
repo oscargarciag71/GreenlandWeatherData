@@ -462,7 +462,7 @@ plt.fill_between(
     np.arange(1, len(average_kiteable_hours)+1),
     average_kiteable_hours - std_kiteable_hours,
     average_kiteable_hours + std_kiteable_hours,
-    color='tab:red', alpha=0.2, label='25th–75th percentile'
+    color='tab:red', alpha=0.2, label='mean kiteable hours ± std'
 )
 plt.plot(np.arange(1, len(average_kiteable_hours)+1), average_kiteable_hours_bearing, linestyle = '--', color='tab:red', linewidth = 2, label='kiteable hours bearing')
 # plt.fill_between(
@@ -720,7 +720,7 @@ plt.fill_between(
     np.arange(1, len(average_kiteable_hours)+1),
     average_kiteable_hours - std_kiteable_hours,
     average_kiteable_hours + std_kiteable_hours,
-    color='tab:blue', alpha=0.2, label='25th–75th percentile'
+    color='tab:blue', alpha=0.2, label='mean kiteable hours ± std'
 )
 plt.plot(np.arange(1, len(average_kiteable_hours)+1), average_kiteable_hours_bearing, linestyle = '--', color='tab:blue', linewidth = 2, label='kiteable hours bearing')
 # plt.fill_between(
