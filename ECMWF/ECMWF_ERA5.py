@@ -600,6 +600,14 @@ plt.show()
 # %% Process data to extract wind speed and direction along the path
 import xarray as xr
 import numpy as np
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+import sys
+sys.path.append('C:/Users/SchwarzN/OneDrive - Université de Fribourg/Private/2026_Greenland/WeatherAnalysis/GreenlandWeatherData/ECMWF')
+import importlib
+from utils import get_era5, get_era5_hourly, haversine, interpolate_great_circle, calculate_bearing
+importlib.reload(sys.modules['utils'])
+import matplotlib
 
 # Tasiilaq to Ilulissat
 start_lat, start_lon = 65.9654610324651, -38.322433959692717 # Tasiilaq
@@ -888,3 +896,35 @@ plt.annotate(f"{np.mean(stats_tas_illu['average_kiteable_hours']/(np.ones(len(st
 plt.savefig("C:/Users/SchwarzN/OneDrive - Université de Fribourg/Private/2026_Greenland/WeatherAnalysis/GreenlandWeatherData/ECMWF/kiteable_hours.png", dpi=300)
 plt.show()
 # %%
+# Visualize diurnal cycle of wind speed and direction along the path
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# line diagram for wind speed averaged over all years with hourly resolution
+mean_wind_speed = np.mean(wind_speed_along_path, axis=0) # shape (n_points, 24)
+std_wind_speed = np.std(wind_speed_along_path, axis=0) # shape (n_points, 24)
+
+plt.figure(figsize=(12, 6))
+# Use a colormap for gradient colors by index
+cmap = plt.get_cmap('viridis', len(dates))
+for i in range(len(dates)):
+    color = cmap(i)
+    plt.plot(np.arange(0, 24), mean_wind_speed[i, :], label=f"Day {i+1} ({lats[i]:.2f}°, {lons[i]:.2f}°)", color=color)
+    plt.fill_between(
+        np.arange(0, 24),
+        mean_wind_speed[i, :] - std_wind_speed[i, :],
+        mean_wind_speed[i, :] + std_wind_speed[i, :],
+        color=color,
+        alpha=0.15
+    )
+plt.title("Diurnal Cycle of Wind Speed Along Path (Mean ± Std Dev over 1950-2026)")
+plt.xlabel("Hour of Day")
+plt.ylabel("Wind Speed (m/s)")
+plt.xlim(0, 23)
+plt.ylim(0, 11)
+plt.xticks(np.arange(0, 24, 1))
+# plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='small')
+plt.grid()
+plt.savefig("C:/Users/SchwarzN/OneDrive - Université de Fribourg/Private/2026_Greenland/WeatherAnalysis/GreenlandWeatherData/ECMWF/diurnal_cycle_wind_speed.png", dpi=300, bbox_inches='tight')
+plt.show()
