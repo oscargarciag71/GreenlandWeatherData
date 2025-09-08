@@ -197,7 +197,7 @@ for i in range(n_points):
     v_pt = v10.sel(valid_time=dates[i], latitude=lats[i], longitude=lons[i], method="nearest").values
     ws_pt = np.sqrt(u_pt**2 + v_pt**2)
     # Wind direction in degrees: 0 = North, 90 = East, 180 = South, 270 = West
-    wd_pt = (np.arctan2(u_pt, v_pt) * 180 / np.pi) % 360
+    wd_pt = (np.arctan2(-u_pt, -v_pt) * 180 / np.pi) % 360
     ws_along_path.append(ws_pt)
     wind_dir_along_path.append(wd_pt)
 ws_along_path = np.array(ws_along_path)
@@ -385,7 +385,7 @@ for y_idx, year in enumerate(years):
             v_pt = v10.sel(valid_time=date+"T"+hours[h], latitude=lats[i], longitude=lons[i], method="nearest").values
             ws_pt = np.sqrt(u_pt**2 + v_pt**2)
             # Wind direction in degrees: 0 = North, 90 = East, 180 = South, 270 = West
-            wd_pt = (np.arctan2(u_pt, v_pt) * 180 / np.pi) % 360
+            wd_pt = (np.arctan2(-u_pt, -v_pt) * 180 / np.pi) % 360
             wind_speed_along_path[y_idx, i, h] = ws_pt # shape (len(years), len(dates), 24)
             wind_dir_along_path[y_idx, i, h] = wd_pt # shape (len(years), len(dates), 24)
 # %% Analze kiteable hours
@@ -431,6 +431,17 @@ average_kiteable_hours_speed = np.mean(kiteable_hours_speed, axis=0)
 percentile_25_kiteable_hours_speed = np.percentile(kiteable_hours_speed, 25, axis=0)
 percentile_75_kiteable_hours_speed = np.percentile(kiteable_hours_speed, 75, axis=0)
 
+# Save kiteable hours statistics to CSV
+kiteable_stats = pd.DataFrame({
+    "average_kiteable_hours": average_kiteable_hours,
+    "std_kiteable_hours": std_kiteable_hours,
+    "average_kiteable_hours_bearing": average_kiteable_hours_bearing,
+    "average_kiteable_hours_speed": average_kiteable_hours_speed
+})
+kiteable_stats.to_csv(
+    "C:/Users/SchwarzN/OneDrive - Université de Fribourg/Private/2026_Greenland/WeatherAnalysis/GreenlandWeatherData/ECMWF/kiteable_hours_stats_Illulisat_Tasiilaq.csv",
+    index=False
+)
 
 print(f"kiteable hours Illulisat - Tasiilaq: {np.mean(average_kiteable_hours/(np.ones(len(average_kiteable_hours))*24))*100:.0f}%/d")
 
@@ -478,7 +489,6 @@ plt.annotate(f"{np.mean(average_kiteable_hours/(np.ones(len(average_kiteable_hou
 plt.savefig("C:/Users/SchwarzN/OneDrive - Université de Fribourg/Private/2026_Greenland/WeatherAnalysis/GreenlandWeatherData/ECMWF/kiteable_hours_Illulisat_Tasiilaq_1950_2026.png", dpi=300)
 plt.show()
 # %% Generate windrose for all locations/date taking into account all years and hours
-# ? Is it reasonable to analyze for differences and trends between different years?
 # import windrose
 
 # def plot_windrose(wind_speed, wind_dir, years, date, lat, lon):
@@ -496,7 +506,6 @@ plt.show()
 #     plot_windrose(wind_speed_along_path[:, day_idx, :], wind_dir_along_path[:, day_idx, :], years, dates[day_idx], lats[day_idx], lons[day_idx])
 
 # %% Generate windrose for all locations/date taking into account all years and hours
-# ? Is it reasonable to analyze for differences and trends between different years?
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -634,7 +643,7 @@ for y_idx, year in enumerate(years):
             v_pt = v10.sel(valid_time=date+"T"+hours[h], latitude=lats[i], longitude=lons[i], method="nearest").values
             ws_pt = np.sqrt(u_pt**2 + v_pt**2)
             # Wind direction in degrees: 0 = North, 90 = East, 180 = South, 270 = West
-            wd_pt = (np.arctan2(u_pt, v_pt) * 180 / np.pi) % 360
+            wd_pt = (np.arctan2(-u_pt, -v_pt) * 180 / np.pi) % 360
             wind_speed_along_path[y_idx, i, h] = ws_pt # shape (len(years), len(dates), 24)
             wind_dir_along_path[y_idx, i, h] = wd_pt # shape (len(years), len(dates), 24)
 # %% Analze kiteable hours
@@ -680,6 +689,17 @@ average_kiteable_hours_speed = np.mean(kiteable_hours_speed, axis=0)
 percentile_25_kiteable_hours_speed = np.percentile(kiteable_hours_speed, 25, axis=0)
 percentile_75_kiteable_hours_speed = np.percentile(kiteable_hours_speed, 75, axis=0)
 
+# Save kiteable hours statistics to CSV
+kiteable_stats = pd.DataFrame({
+    "average_kiteable_hours": average_kiteable_hours,
+    "std_kiteable_hours": std_kiteable_hours,
+    "average_kiteable_hours_bearing": average_kiteable_hours_bearing,
+    "average_kiteable_hours_speed": average_kiteable_hours_speed
+})
+kiteable_stats.to_csv(
+    "C:/Users/SchwarzN/OneDrive - Université de Fribourg/Private/2026_Greenland/WeatherAnalysis/GreenlandWeatherData/ECMWF/kiteable_hours_stats_Tasiilaq_Illulisat.csv",
+    index=False
+)
 
 print(f"kiteable hours Tasiilaq - Illulisat: {np.mean(average_kiteable_hours/(np.ones(len(average_kiteable_hours))*24))*100:.0f}%/d")
 
@@ -727,7 +747,6 @@ plt.annotate(f"{np.mean(average_kiteable_hours/(np.ones(len(average_kiteable_hou
 plt.savefig("C:/Users/SchwarzN/OneDrive - Université de Fribourg/Private/2026_Greenland/WeatherAnalysis/GreenlandWeatherData/ECMWF/kiteable_hours_Tasiilaq_Illulisat.png", dpi=300)
 plt.show()
 # %% Generate windrose for all locations/date taking into account all years and hours
-# ? Is it reasonable to analyze for differences and trends between different years?
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -818,3 +837,54 @@ for ax, (date, subdata) in zip(g.axes.flat, wind_data.groupby("date")):
 plt.subplots_adjust(wspace=-0.2, hspace=0.4)
 plt.savefig("C:/Users/SchwarzN/OneDrive - Université de Fribourg/Private/2026_Greenland/WeatherAnalysis/GreenlandWeatherData/ECMWF/Tasiilaq_Illulisat_windrose.png", dpi=300)
 plt.show()
+# %%
+# Plot average kiteable hours per day along the path
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+# Read kiteable hours stats for both directions
+stats_illu_tas = pd.read_csv(
+    r"C:\Users\SchwarzN\OneDrive - Université de Fribourg\Private\2026_Greenland\WeatherAnalysis\GreenlandWeatherData\ECMWF\kiteable_hours_stats_Illulisat_Tasiilaq.csv"
+)
+stats_tas_illu = pd.read_csv(
+    r"C:\Users\SchwarzN\OneDrive - Université de Fribourg\Private\2026_Greenland\WeatherAnalysis\GreenlandWeatherData\ECMWF\kiteable_hours_stats_Tasiilaq_Illulisat.csv"
+)
+
+print(f"kiteable hours Illulisat - Tasiilaq: {np.mean(stats_illu_tas['average_kiteable_hours']/(np.ones(len(stats_illu_tas['average_kiteable_hours']))*24))*100:.0f}%/d")
+print(f"kiteable hours Tasiilaq - Illulisat: {np.mean(stats_tas_illu['average_kiteable_hours']/(np.ones(len(stats_tas_illu['average_kiteable_hours']))*24))*100:.0f}%/d")
+
+plt.figure(figsize=(12, 6))
+# plt.errorbar(np.arange(1, len(stats_illu_tas['average_kiteable_hours'])+1), stats_illu_tas['average_kiteable_hours'], yerr=stats_illu_tas['std_kiteable_hours'], fmt='o', color='tab:blue', ecolor='lightblue', elinewidth=2, capsize=4, label='illu-tas mean kiteable hours ± std')
+plt.plot(np.arange(1, len(stats_illu_tas['average_kiteable_hours'])+1), stats_illu_tas['average_kiteable_hours'], marker='o', color='tab:blue', linewidth = 2, label='illu-tas mean kiteable hours')
+plt.fill_between(
+    np.arange(1, len(stats_illu_tas['average_kiteable_hours'])+1),
+    stats_illu_tas['average_kiteable_hours'] - stats_illu_tas['std_kiteable_hours'],
+    stats_illu_tas['average_kiteable_hours'] + stats_illu_tas['std_kiteable_hours'],
+    color='tab:blue', alpha=0.2, label='illu-tas std dev kiteable hours'
+)
+# plt.plot(np.arange(1, len(stats_illu_tas['average_kiteable_hours'])+1), stats_illu_tas['average_kiteable_hours_bearing'], linestyle = '--', color='tab:blue', linewidth = 2, label='illu-tas kiteable hours bearing')
+# plt.plot(np.arange(1, len(stats_illu_tas['average_kiteable_hours'])+1), stats_illu_tas['average_kiteable_hours_speed'], linestyle = ':', color='tab:blue', linewidth = 2, label='illu-tas kiteable hours speed')
+
+# plt.errorbar(np.arange(1, len(stats_tas_illu['average_kiteable_hours'])+1), stats_tas_illu['average_kiteable_hours'], yerr=stats_tas_illu['std_kiteable_hours'], fmt='o', color='tab:red', ecolor='red', elinewidth=2, capsize=4, label='illu-tas mean kiteable hours ± std')
+plt.plot(np.arange(1, len(stats_tas_illu['average_kiteable_hours'])+1), stats_tas_illu['average_kiteable_hours'], marker='o', color='tab:red', linewidth = 2, label='illu-tas mean kiteable hours')
+plt.fill_between(
+    np.arange(1, len(stats_tas_illu['average_kiteable_hours'])+1),
+    stats_tas_illu['average_kiteable_hours'] - stats_tas_illu['std_kiteable_hours'],
+    stats_tas_illu['average_kiteable_hours'] + stats_tas_illu['std_kiteable_hours'],
+    color='tab:red', alpha=0.2, label='illu-tas std dev kiteable hours'
+)
+# plt.plot(np.arange(1, len(stats_tas_illu['average_kiteable_hours'])+1), stats_tas_illu['average_kiteable_hours_bearing'], linestyle = '--', color='tab:red', linewidth = 2, label='illu-tas kiteable hours bearing')
+# plt.plot(np.arange(1, len(stats_tas_illu['average_kiteable_hours'])+1), stats_tas_illu['average_kiteable_hours_speed'], linestyle = ':', color='tab:red', linewidth = 2, label='illu-tas kiteable hours speed')
+
+plt.title("Tasiilaq to Ilulissat: Average Daily Kiteable Hours (6-14 m/s, ±50° from bearing)")
+plt.xlabel("Day")
+plt.ylabel("Average Kiteable Hours")
+plt.xlim(1, len(stats_illu_tas['average_kiteable_hours']))
+plt.ylim(0,24)
+plt.legend()
+plt.grid()
+plt.annotate(f"{np.mean(stats_illu_tas['average_kiteable_hours']/(np.ones(len(stats_illu_tas['average_kiteable_hours']))*24))*100:.0f}%/d", xy=(6, 7.5), fontsize=18, color='tab:blue')
+plt.annotate(f"{np.mean(stats_tas_illu['average_kiteable_hours']/(np.ones(len(stats_tas_illu['average_kiteable_hours']))*24))*100:.0f}%/d", xy=(6, 12.5), fontsize=18, color='tab:red')
+plt.savefig("C:/Users/SchwarzN/OneDrive - Université de Fribourg/Private/2026_Greenland/WeatherAnalysis/GreenlandWeatherData/ECMWF/kiteable_hours.png", dpi=300)
+plt.show()
+# %%
