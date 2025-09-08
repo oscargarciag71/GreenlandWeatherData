@@ -876,7 +876,7 @@ plt.fill_between(
 # plt.plot(np.arange(1, len(stats_tas_illu['average_kiteable_hours'])+1), stats_tas_illu['average_kiteable_hours_bearing'], linestyle = '--', color='tab:red', linewidth = 2, label='illu-tas kiteable hours bearing')
 # plt.plot(np.arange(1, len(stats_tas_illu['average_kiteable_hours'])+1), stats_tas_illu['average_kiteable_hours_speed'], linestyle = ':', color='tab:red', linewidth = 2, label='illu-tas kiteable hours speed')
 
-plt.title("Tasiilaq to Ilulissat: Average Daily Kiteable Hours (6-14 m/s, ±50° from bearing)")
+plt.title("Average Daily Kiteable Hours (6-14 m/s, ±50° from bearing)")
 plt.xlabel("Day")
 plt.ylabel("Average Kiteable Hours")
 plt.xlim(1, len(stats_illu_tas['average_kiteable_hours']))
