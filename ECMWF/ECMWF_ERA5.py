@@ -334,6 +334,14 @@ for year in years:
 # %% Process data to extract wind speed and direction along the path
 import xarray as xr
 import numpy as np
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+import sys
+sys.path.append('C:/Users/SchwarzN/OneDrive - Université de Fribourg/Private/2026_Greenland/WeatherAnalysis/GreenlandWeatherData/ECMWF')
+import importlib
+from utils import get_era5, get_era5_hourly, haversine, interpolate_great_circle, calculate_bearing
+importlib.reload(sys.modules['utils'])
+import matplotlib
 
 # Ilulissat to Tasiilaq
 start_lat, start_lon = 69.753550, -50.279133 # Ilulissat
