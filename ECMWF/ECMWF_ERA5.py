@@ -900,31 +900,69 @@ plt.show()
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import Normalize
 
 # line diagram for wind speed averaged over all years with hourly resolution
 mean_wind_speed = np.mean(wind_speed_along_path, axis=0) # shape (n_points, 24)
 std_wind_speed = np.std(wind_speed_along_path, axis=0) # shape (n_points, 24)
 
-plt.figure(figsize=(12, 6))
+from scipy.signal import find_peaks
+
+peak_max_indices = []
+peak_min_indices = []
+
+for i in range(len(dates)):
+    y = mean_wind_speed[i, :]
+    # Find maxima
+    peaks, _ = find_peaks(y)
+    # Find minima
+    troughs, _ = find_peaks(-y)
+    # Get the highest peak and lowest trough
+    if len(peaks) > 0:
+        peak_max = peaks[np.argmax(y[peaks])]
+    else:
+        peak_max = np.argmax(y)
+    if len(troughs) > 0:
+        peak_min = troughs[np.argmin(y[troughs])]
+    else:
+        peak_min = np.argmin(y)
+    peak_max_indices.append(peak_max)
+    peak_min_indices.append(peak_min)
+
+fig, ax = plt.subplots(figsize=(12, 6))
 # Use a colormap for gradient colors by index
 cmap = plt.get_cmap('viridis', len(dates))
 for i in range(len(dates)):
     color = cmap(i)
-    plt.plot(np.arange(0, 24), mean_wind_speed[i, :], label=f"Day {i+1} ({lats[i]:.2f}°, {lons[i]:.2f}°)", color=color)
-    plt.fill_between(
-        np.arange(0, 24),
-        mean_wind_speed[i, :] - std_wind_speed[i, :],
-        mean_wind_speed[i, :] + std_wind_speed[i, :],
-        color=color,
-        alpha=0.15
-    )
+    y_shift = (np.min(mean_wind_speed[i, :])+np.max(mean_wind_speed[i, :]))/2
+    x_shift = 12-(np.argmax(mean_wind_speed[i, :])+np.argmin(mean_wind_speed[i, :]))/2 # peakfinder needs to be used instead of simple max and min values
+    x_shift = 0
+    ax.plot((np.arange(0, 24)+x_shift), mean_wind_speed[i, :]-y_shift, label=f"Day {i+1} ({lats[i]:.2f}°, {lons[i]:.2f}°)", color=color, linewidth=3)
+    # ax.plot(np.arange(0, 24)[peak_max_indices]+x_shift, mean_wind_speed[i, peak_max_indices]-y_shift, 'o', color='orange', markersize=8)
+    # ax.plot(peak_min, y[peak_min]-y_shift, 'o', color='purple', markersize=8)
+    # ax.fill_between(
+    #     np.arange(0, 24),
+    #     mean_wind_speed[i, :] - std_wind_speed[i, :]-y_shift,
+    #     mean_wind_speed[i, :] + std_wind_speed[i, :]-y_shift,
+    #     color=color,
+    #     alpha=0.15
+    # )
 plt.title("Diurnal Cycle of Wind Speed Along Path (Mean ± Std Dev over 1950-2026)")
 plt.xlabel("Hour of Day")
-plt.ylabel("Wind Speed (m/s)")
+plt.ylabel("Relative Wind Speed (m/s)")
 plt.xlim(0, 23)
-plt.ylim(0, 11)
+# plt.ylim(0, 2.6)
 plt.xticks(np.arange(0, 24, 1))
 # plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='small')
+
+norm = Normalize(vmin=0, vmax=len(dates)-1)
+sm = ScalarMappable(norm=norm, cmap='viridis')
+sm.set_array([])
+cax = ax.inset_axes([0.1, 0.2, 0.3, 0.03])  # [x0, y0, width, height] for horizontal
+cb = fig.colorbar(sm, cax=cax, orientation='horizontal')
+cb.set_ticks([0, len(dates)-1])
+cb.set_ticklabels(['Tasiilaq', 'Ilulissat'])
 plt.grid()
 plt.savefig("C:/Users/SchwarzN/OneDrive - Université de Fribourg/Private/2026_Greenland/WeatherAnalysis/GreenlandWeatherData/ECMWF/diurnal_cycle_wind_speed.png", dpi=300, bbox_inches='tight')
 plt.show()
