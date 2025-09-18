@@ -2,6 +2,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from windrose import WindroseAxes
 import numpy as np
+import cdsapi
+import xarray as xr
+import os
+import glob
 
 
 def plot_histograms(df):
@@ -62,7 +66,11 @@ def plot_histograms(df):
         plt.tight_layout(rect=[0, 0, 1, 0.95])
         plt.show()
 
-def plot_wind_rose(df, marker_angle, kite_angle_1, kite_angle_2):
+
+def plot_wind_rose(df, heading):
+    kite_angle_1 = (heading - 55) % 360
+    kite_angle_2 = (heading + 55) % 360
+
     # Months of interest
     months = {5: "May", 6: "June", 7: "July"}
 
@@ -70,29 +78,134 @@ def plot_wind_rose(df, marker_angle, kite_angle_1, kite_angle_2):
 
     # Create 3 windrose axes manually
     for i, (month, name) in enumerate(months.items()):
-        df_month = df[df['Month'] == month][['301','365']].dropna()
-        ws = df_month['301'].values
-        wd = df_month['365'].values
+        df_month = df[df["Month"] == month][["301", "365"]].dropna()
+        ws = df_month["301"]
+        wd = df_month["365"]
 
         # Define axes rectangle: left, bottom, width, height
-        rect = [0.05 + i*0.32, 0.1, 0.3, 0.8]  # adjust spacing between subplots
+        rect = [0.05 + i * 0.32, 0.1, 0.3, 0.8]  # adjust spacing between subplots
         ax = WindroseAxes(fig, rect)
         fig.add_axes(ax)
-        
-        ax.bar(wd, ws, opening=0.8, edgecolor="white", bins=[0,2,4,6,8,10], normed=True)
-        ax.set_title(f"Average wind speed and direction for {name}", fontsize=14)
-        
+
+        ax.bar(
+            wd,
+            ws,
+            opening=0.8,
+            edgecolor="white",
+            bins=[0, 2, 4, 6, 8, 10],
+            normed=True,
+        )
+        ax.set_title(f"Average wind {name}", fontsize=14)
+
         # Add radial marker at 124°
-        theta = np.deg2rad(marker_angle)
+
+        theta = np.deg2rad(-heading + 90)
         ax.plot([theta, theta], [0, ax.get_rmax()], "r--", lw=2)
 
-        theta_1 = np.deg2rad(kite_angle_1)
+        theta_1 = np.deg2rad(-kite_angle_1 + 90)
         ax.plot([theta_1, theta_1], [0, ax.get_rmax()], "b--", lw=2)
 
-        theta_2 = np.deg2rad(kite_angle_2)
+        theta_2 = np.deg2rad(-kite_angle_2 + 90)
         ax.plot([theta_2, theta_2], [0, ax.get_rmax()], "b--", lw=2)
-        
+
+        # ---- Compute percentage ----
+        mask = (ws > 2.5) & ((wd < kite_angle_1) | (wd > kite_angle_2))
+        percentage = 100 * mask.sum() / len(ws)
+
+        # Add text annotation inside plot
+        ax.text(
+            0.5,
+            -0.15,
+            f"Kiting conditions {percentage:.1f}%",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+            fontsize=12,
+            color="black",
+        )
     # Add a single legend for all subplots
     ax.set_legend(title="Wind speed (m/s)")
 
     plt.show()
+
+
+def download_era5_data(
+    latitude, longitude, year_start, year_end, output_folder="data/TEST_ERA5"
+):
+    c = cdsapi.Client()
+
+    # create output folder if it doesn't exist
+    os.makedirs(output_folder, exist_ok=True)
+
+    years = [str(y) for y in range(year_start, year_end + 1)]
+    months = ["05", "06", "07"]  # May, June, July
+
+    for year in years:
+        for month in months:
+            filename = f"wind_{year}_{month}.nc"
+            filepath = os.path.join(
+                output_folder, filename
+            )  # store inside chosen folde
+            print(f"Downloading {filename}...")
+
+            c.retrieve(
+                "reanalysis-era5-single-levels",
+                {
+                    "product_type": "reanalysis",
+                    "variable": ["10m_u_component_of_wind", "10m_v_component_of_wind"],
+                    "year": year,
+                    "month": month,
+                    "day": [str(d).zfill(2) for d in range(1, 32)],  # all days
+                    "time": ["00:00", "06:00", "12:00", "18:00"],
+                    "area": [
+                        latitude,
+                        longitude,
+                        latitude,
+                        longitude,
+                    ],
+                    "format": "netcdf",
+                },
+                filepath,
+            )
+
+
+def convert_era5_data(folder_path, output_csv="wind_all.csv"):
+    all_dfs = []
+    print(folder_path)
+    # Find all NetCDF files in folder
+    files = sorted(glob.glob(os.path.join(folder_path, "*.nc")))
+
+    for file in files:
+        print(f"Processing {file} ...")
+        ds = xr.open_dataset(file, engine="h5netcdf")
+
+        # Convert to pandas DataFrame
+        df = ds[["u10", "v10"]].to_dataframe().reset_index()
+
+        # Extract date components
+        df["Year"] = df["valid_time"].dt.year
+        df["Month"] = df["valid_time"].dt.month
+        df["Day"] = df["valid_time"].dt.day
+        df["Hour(utc)"] = df["valid_time"].dt.hour
+
+        # Wind speed (m/s)
+        df["301"] = np.sqrt(df["u10"] ** 2 + df["v10"] ** 2)
+
+        # Wind direction (° from north, meteorological convention)
+        df["365"] = (270 - np.degrees(np.arctan2(df["v10"], df["u10"]))) % 360
+
+        # Keep only relevant columns
+        df_final = df[["Year", "Month", "Day", "Hour(utc)", "301", "365"]]
+
+        all_dfs.append(df_final)
+
+        ds.close()
+
+    # Merge all into one DataFrame
+    df_all = pd.concat(all_dfs, ignore_index=True)
+
+    # Save to CSV
+    df_all.to_csv(output_csv, index=False, sep=";")
+    print(f"Saved merged data to {output_csv}")
+
+    return df_all
