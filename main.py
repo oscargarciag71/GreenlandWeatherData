@@ -44,13 +44,22 @@ WP5_lon = -39.460040
 
 
 # Download data from ERA5 using Copernicus API
-# utils.download_era5_data(WP3_lat, WP3_lon, 2008, 2018, "data/ERA5_WP3")
+# utils.download_era5_data_wind(WP3_lat, WP3_lon, 2008, 2018, "data/ERA5_WP3")
 
 # Convert the ERA5 data into CSV
-# utils.convert_era5_data("data/ERA5_WP3", "data/ERA5_WP3/wind_WP3.csv")
+# utils.convert_era5_data_wind("data/ERA5_WP3", "data/ERA5_WP3/wind_WP3.csv")
 
 # Import CSV file
 # df = pd.read_csv("data/ERA5_WP1/wind_WP1.csv", sep=";")
 
 # Plot wind rose
 # utils.plot_wind_rose(df, 304)
+
+# Download data from ERA5 using Copernicus API
+# utils.download_era5_data_snow(WP1_lat, WP1_lon, 2022, 2024, "data/SNOW_TEST")
+
+# utils.convert_era5_data_snow("data/SNOW_TEST", "data/SNOW_TEST/test .csv")
+
+df = pd.read_csv("data/SNOW_TEST/test .csv", sep=";")
+
+utils.linear_plot(df)

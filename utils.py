@@ -8,6 +8,17 @@ import os
 import glob
 
 
+def linear_plot(df):
+    plt.figure(figsize=(10, 5))
+    plt.plot(df.index, df["skt"], label="skt (ºC)", color="blue")
+    plt.xlabel("Time")
+    plt.ylabel("Values")
+    plt.title("Skt")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+
 def plot_histograms(df):
     # Filter only May, June, July
     months = {5: "May", 6: "June", 7: "July"}
@@ -129,7 +140,7 @@ def plot_wind_rose(df, heading):
     plt.show()
 
 
-def download_era5_data(
+def download_era5_data_wind(
     latitude, longitude, year_start, year_end, output_folder="data/TEST_ERA5"
 ):
     c = cdsapi.Client()
@@ -169,7 +180,7 @@ def download_era5_data(
             )
 
 
-def convert_era5_data(folder_path, output_csv="wind_all.csv"):
+def convert_era5_data_wind(folder_path, output_csv="wind_all.csv"):
     all_dfs = []
     print(folder_path)
     # Find all NetCDF files in folder
@@ -198,6 +209,80 @@ def convert_era5_data(folder_path, output_csv="wind_all.csv"):
         df_final = df[["Year", "Month", "Day", "Hour(utc)", "301", "365"]]
 
         all_dfs.append(df_final)
+
+        ds.close()
+
+    # Merge all into one DataFrame
+    df_all = pd.concat(all_dfs, ignore_index=True)
+
+    # Save to CSV
+    df_all.to_csv(output_csv, index=False, sep=";")
+    print(f"Saved merged data to {output_csv}")
+
+    return df_all
+
+
+def download_era5_data_snow(
+    latitude, longitude, year_start, year_end, output_folder="data/ERA5_snow"
+):
+    c = cdsapi.Client()
+
+    # create output folder if it doesn't exist
+    os.makedirs(output_folder, exist_ok=True)
+
+    years = [str(y) for y in range(year_start, year_end + 1)]
+    months = [str(m).zfill(2) for m in range(1, 13)]  # all months
+    days = [str(d).zfill(2) for d in range(1, 32)]  # all days
+    times = ["00:00"]
+
+    filename = f"snow_{year_start}_{year_end}.nc"
+    filepath = os.path.join(output_folder, filename)
+    print(f"Downloading {filename} for all years at once...")
+
+    c.retrieve(
+        "reanalysis-era5-single-levels",
+        {
+            "product_type": "reanalysis",
+            "variable": ["skin_temperature"],
+            # "variable": ["snow_albedo", "runoff", "skin_temperature"]
+            "year": years,
+            "month": months,
+            "day": days,
+            "time": times,
+            "area": [latitude, longitude, latitude, longitude],
+            "format": "netcdf",
+        },
+        filepath,
+    )
+
+
+def convert_era5_data_snow(folder_path, output_csv="snow_all.csv"):
+    all_dfs = []
+    print(folder_path)
+    # Find all NetCDF files in folder
+    files = sorted(glob.glob(os.path.join(folder_path, "*.nc")))
+
+    for file in files:
+        print(f"Processing {file} ...")
+        ds = xr.open_dataset(file, engine="h5netcdf")
+
+        print(ds)
+
+        # Convert to pandas DataFrame
+        df = ds[["skt"]].to_dataframe().reset_index()
+
+        # Extract date components
+        df["Year"] = df["valid_time"].dt.year
+        df["Month"] = df["valid_time"].dt.month
+        df["Day"] = df["valid_time"].dt.day
+        df["Hour(utc)"] = df["valid_time"].dt.hour
+
+        # Keep only relevant columns
+        df_final = df[["Year", "Month", "Day", "Hour(utc)", "skt"]]
+
+        all_dfs.append(df_final)
+
+        print(df_final)
 
         ds.close()
 
